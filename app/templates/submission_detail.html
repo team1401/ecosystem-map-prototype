@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Submission #{{ submission.id }} - Ecosystem Map{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin') }}">← Back to admin queue</a>
+<section class="hero">
+  <div>
+    <p class="eyebrow">Submission #{{ submission.id }}</p>
+    <h1>{{ submission.submission_type }}</h1>
+    <p><strong>Status:</strong> {{ submission.status }}</p>
+    <p><strong>Submitter:</strong> {{ submission.submitter_name or 'Unknown' }}{% if submission.submitter_email %} · {{ submission.submitter_email }}{% endif %}</p>
+  </div>
+</section>
+
+<section class="columns">
+  <div class="panel">
+    <h2>Submission details</h2>
+    <dl class="detail-list">
+      <dt>Created</dt><dd>{{ submission.created_at or '—' }}</dd>
+      <dt>Reviewed</dt><dd>{{ submission.reviewed_at or '—' }}</dd>
+      <dt>Linked record kind</dt><dd>{{ submission.linked_record_kind or '—' }}</dd>
+      <dt>Linked record ID</dt><dd>{{ submission.linked_record_id or '—' }}</dd>
+    </dl>
+    <h3>Raw submission</h3>
+    <pre>{{ submission.raw_data }}</pre>
+  </div>
+
+  <div class="panel">
+    <h2>Review update</h2>
+    <form method="post" action="{{ url_for('update_submission', submission_id=submission.id) }}" class="stacked">
+      <label>Status
+        <select name="status">
+          {% for option in ['Pending Review', 'Approved / Published', 'Rejected', 'Needs More Information', 'Archived', 'Private / Admin Only'] %}
+          <option value="{{ option }}" {% if submission.status == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Admin notes
+        <textarea name="admin_notes" placeholder="Review notes, evidence, follow-up needed">{{ submission.admin_notes or '' }}</textarea>
+      </label>
+      <button>Save review update</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -8,6 +8,7 @@
   {% for s in submissions %}
   <article class="review-card">
     <p class="eyebrow">#{{ s.id }} · {{ s.submission_type }} · {{ s.created_at }}</p>
+    <h3><a href="{{ url_for('submission_detail', submission_id=s.id) }}">Review submission #{{ s.id }}</a></h3>
     <pre>{{ s.raw_data }}</pre>
     <form method="post" action="{{ url_for('review_submission', submission_id=s.id, action='approve') }}"><textarea name="admin_notes" placeholder="Admin notes">{{ s.admin_notes or '' }}</textarea><button>Approve</button></form>
     <form method="post" action="{{ url_for('review_submission', submission_id=s.id, action='needs-info') }}"><button>Needs info</button></form>

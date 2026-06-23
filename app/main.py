@@ -136,6 +136,44 @@ def admin():
     return render_template("admin.html", submissions=submissions, status=status, counts=counts)
 
 
+@app.route("/admin/submissions/<int:submission_id>")
+def submission_detail(submission_id: int):
+    seed()
+    with connect() as conn:
+        submission = conn.execute(
+            "SELECT * FROM submissions WHERE id=?",
+            (submission_id,),
+        ).fetchone()
+    if not submission:
+        abort(404)
+    return render_template("submission_detail.html", submission=submission)
+
+
+@app.post("/admin/submissions/<int:submission_id>/update")
+def update_submission(submission_id: int):
+    new_status = request.form.get("status", "Pending Review")
+    allowed_statuses = {
+        "Pending Review",
+        "Approved / Published",
+        "Rejected",
+        "Needs More Information",
+        "Archived",
+        "Private / Admin Only",
+    }
+    if new_status not in allowed_statuses:
+        abort(400)
+    notes = request.form.get("admin_notes", "")
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE submissions SET status=?, admin_notes=?, reviewed_at=CURRENT_TIMESTAMP WHERE id=?",
+            (new_status, notes, submission_id),
+        )
+        conn.commit()
+    if cur.rowcount == 0:
+        abort(404)
+    return redirect(url_for("submission_detail", submission_id=submission_id))
+
+
 @app.post("/admin/submissions/<int:submission_id>/<action>")
 def review_submission(submission_id: int, action: str):
     if action not in {"approve", "reject", "needs-info"}:
