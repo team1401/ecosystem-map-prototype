@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% block title %}Admin - Ecosystem Map{% endblock %}
+{% block content %}
+<section class="hero"><div><h1>Admin review queue</h1><p>Review public submissions before records become visible.</p></div><div class="metrics">{% for key, value in counts.items() %}<span><strong>{{ value }}</strong>{{ key }}</span>{% endfor %}</div></section>
+<section class="panel">
+  <p>Status filters: <a href="{{ url_for('admin', status='Pending Review') }}">Pending</a> · <a href="{{ url_for('admin', status='Needs More Information') }}">Needs Info</a> · <a href="{{ url_for('admin', status='Approved / Published') }}">Approved</a> · <a href="{{ url_for('admin', status='Rejected') }}">Rejected</a></p>
+  <h2>{{ status }}</h2>
+  {% for s in submissions %}
+  <article class="review-card">
+    <p class="eyebrow">#{{ s.id }} · {{ s.submission_type }} · {{ s.created_at }}</p>
+    <pre>{{ s.raw_data }}</pre>
+    <form method="post" action="{{ url_for('review_submission', submission_id=s.id, action='approve') }}"><textarea name="admin_notes" placeholder="Admin notes">{{ s.admin_notes or '' }}</textarea><button>Approve</button></form>
+    <form method="post" action="{{ url_for('review_submission', submission_id=s.id, action='needs-info') }}"><button>Needs info</button></form>
+    <form method="post" action="{{ url_for('review_submission', submission_id=s.id, action='reject') }}"><button class="danger">Reject</button></form>
+  </article>
+  {% else %}<p>No submissions with this status.</p>{% endfor %}
+</section>
+{% endblock %}

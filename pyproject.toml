@@ -1,0 +1,9 @@
+[project]
+name = "ecosystem-map-prototype"
+version = "0.1.0"
+description = "Community ecosystem mapping and asset discovery prototype"
+requires-python = ">=3.11"
+dependencies = ["flask>=3.0.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]

@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Relationship Graph - Ecosystem Map{% endblock %}
+{% block content %}
+<section class="hero"><div><h1>Relationship graph</h1><p>Approved public entities and relationships. Filtered graph polish comes later; this validates the relationship-first data model now.</p></div></section>
+<section class="panel"><div id="cy"></div></section>
+<section class="panel"><h2>Relationships</h2>{% for r in relationships %}<p><strong>{{ r.source_name }}</strong> {{ r.relationship_type }} <strong>{{ r.target_name }}</strong> <small>{{ r.confidence }}</small></p>{% endfor %}</section>
+<script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
+<script>
+const cy = cytoscape({
+  container: document.getElementById('cy'),
+  elements: {{ elements|safe }},
+  style: [
+    { selector: 'node', style: { 'label': 'data(label)', 'background-color': '#2d6cdf', 'color': '#162033', 'text-valign': 'bottom', 'text-halign': 'center', 'font-size': 11 } },
+    { selector: 'edge', style: { 'label': 'data(label)', 'curve-style': 'bezier', 'target-arrow-shape': 'triangle', 'line-color': '#91a4bd', 'target-arrow-color': '#91a4bd', 'font-size': 9, 'text-background-color': '#fff', 'text-background-opacity': .85 } }
+  ],
+  layout: { name: 'cose', animate: false }
+});
+</script>
+{% endblock %}

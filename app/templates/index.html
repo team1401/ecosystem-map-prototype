@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Directory - Ecosystem Map{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow">Pilot ecosystem</p>
+    <h1>{{ ecosystem.name }}</h1>
+    <p>{{ ecosystem.description }}</p>
+    <p><strong>Scope:</strong> {{ ecosystem.theme }} · <strong>Location:</strong> {{ ecosystem.location }}</p>
+  </div>
+  <div class="metrics">
+    {% for key, value in counts.items() %}<span><strong>{{ value }}</strong>{{ key }}</span>{% endfor %}
+  </div>
+</section>
+
+<section class="panel">
+  <form class="filters" method="get">
+    <input name="q" placeholder="Search names, descriptions, tags, locations" value="{{ q }}">
+    <select name="type">
+      <option value="">All types</option>
+      {% for row in types %}<option value="{{ row.type }}" {% if row.type == type %}selected{% endif %}>{{ row.type }}</option>{% endfor %}
+    </select>
+    <button>Search</button>
+  </form>
+</section>
+
+<section class="grid">
+  {% for entity in entities %}
+  <article class="card">
+    <p class="eyebrow">{{ entity.type }} · {{ entity.location or 'Location TBD' }}</p>
+    <h2><a href="{{ url_for('entity_detail', entity_id=entity.id) }}">{{ entity.name }}</a></h2>
+    <p>{{ entity.description }}</p>
+    <p class="tags">{{ entity.tags }}</p>
+    <p>{{ entity.relationship_count }} relationship{{ '' if entity.relationship_count == 1 else 's' }}</p>
+  </article>
+  {% else %}
+  <p>No approved public records found.</p>
+  {% endfor %}
+</section>
+{% endblock %}

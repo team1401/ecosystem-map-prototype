@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}{{ entity.name }} - Ecosystem Map{% endblock %}
+{% block content %}
+<a href="{{ url_for('index') }}">← Back to directory</a>
+<section class="hero">
+  <div>
+    <p class="eyebrow">{{ entity.type }} · {{ entity.location }}</p>
+    <h1>{{ entity.name }}</h1>
+    <p>{{ entity.description }}</p>
+    {% if entity.website %}<p><a href="{{ entity.website }}">Website</a></p>{% endif %}
+    <p class="tags">{{ entity.tags }}</p>
+  </div>
+</section>
+
+<section class="columns">
+  <div class="panel">
+    <h2>Outgoing relationships</h2>
+    {% for r in outgoing %}
+      <p><strong>{{ entity.name }}</strong> {{ r.relationship_type }} <a href="{{ url_for('entity_detail', entity_id=r.target_entity_id) }}">{{ r.target_name }}</a><br><small>{{ r.confidence }} · {{ r.evidence }}</small></p>
+    {% else %}<p>No outgoing relationships yet.</p>{% endfor %}
+  </div>
+  <div class="panel">
+    <h2>Incoming relationships</h2>
+    {% for r in incoming %}
+      <p><a href="{{ url_for('entity_detail', entity_id=r.source_entity_id) }}">{{ r.source_name }}</a> {{ r.relationship_type }} <strong>{{ entity.name }}</strong><br><small>{{ r.confidence }} · {{ r.evidence }}</small></p>
+    {% else %}<p>No incoming relationships yet.</p>{% endfor %}
+  </div>
+</section>
+
+<section class="columns">
+  <div class="panel"><h2>Events</h2>{% for e in events %}<p><strong>{{ e.name }}</strong><br>{{ e.starts_at }} · {{ e.location }}</p>{% else %}<p>None listed.</p>{% endfor %}</div>
+  <div class="panel"><h2>Resources</h2>{% for r in resources %}<p><strong>{{ r.name }}</strong><br>{{ r.description }}</p>{% else %}<p>None listed.</p>{% endfor %}</div>
+  <div class="panel"><h2>Needs</h2>{% for n in needs %}<p><strong>{{ n.need_type }}</strong><br>{{ n.description }}</p>{% else %}<p>None listed.</p>{% endfor %}</div>
+  <div class="panel"><h2>Offers</h2>{% for o in offers %}<p><strong>{{ o.offer_type }}</strong><br>{{ o.description }}</p>{% else %}<p>None listed.</p>{% endfor %}</div>
+</section>
+{% endblock %}

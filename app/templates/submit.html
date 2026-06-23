@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Submit - Ecosystem Map{% endblock %}
+{% block content %}
+<section class="panel narrow">
+  <h1>Submit an asset or relationship</h1>
+  <p>Submissions enter the admin review queue before publication.</p>
+  <form method="post" class="stacked">
+    <label>Your name <input name="submitter_name"></label>
+    <label>Email <input name="submitter_email" type="email"></label>
+    <label>Submission type
+      <select name="submission_type">
+        <option>Asset submission</option><option>Event</option><option>Resource</option><option>Opportunity</option><option>Need</option><option>Offer</option><option>Relationship suggestion</option><option>Correction</option>
+      </select>
+    </label>
+    <label>Name/title <input name="name" required></label>
+    <label>Asset type <input name="asset_type" placeholder="Artist, venue, organization, resource..."></label>
+    <label>Location/service area <input name="location"></label>
+    <label>Website/public link <input name="website"></label>
+    <label>Description <textarea name="description" required></textarea></label>
+    <label>Suggested relationship/evidence <textarea name="suggested_relationship" placeholder="Example: Artist X performed at Venue Y. Source: event page URL."></textarea></label>
+    <button>Submit for review</button>
+  </form>
+</section>
+{% endblock %}
