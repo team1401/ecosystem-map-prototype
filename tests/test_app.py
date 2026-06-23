@@ -76,3 +76,95 @@ def test_update_submission_status_and_notes():
     assert row['status'] == 'Needs More Information'
     assert row['admin_notes'] == 'Ask for source URL'
     assert row['reviewed_at'] is not None
+
+
+def test_duplicate_hint():
+    c = client()
+    c.post('/submit', data={
+        'submitter_name': 'Tester',
+        'submission_type': 'Asset submission',
+        'name': 'Maya Rivera',
+        'website': 'https://example.org/maya'
+    })
+    
+    with connect() as conn:
+        sub_id = conn.execute("SELECT id FROM submissions ORDER BY id DESC LIMIT 1").fetchone()[0]
+        
+    rv = c.get(f'/admin/submissions/{sub_id}')
+    assert b'Possible Duplicates' in rv.data
+    assert b'Maya Rivera' in rv.data
+    assert b'High' in rv.data
+
+
+def test_create_draft_entity():
+    c = client()
+    c.post('/submit', data={
+        'submitter_name': 'Tester',
+        'submission_type': 'Asset submission',
+        'name': 'New Draft Entity Test',
+        'asset_type': 'Venue',
+    })
+    
+    with connect() as conn:
+        sub_id = conn.execute("SELECT id FROM submissions ORDER BY id DESC LIMIT 1").fetchone()[0]
+        
+    rv = c.post(f'/admin/submissions/{sub_id}/create-draft-entity', follow_redirects=True)
+    assert rv.status_code == 200
+    
+    with connect() as conn:
+        sub = conn.execute("SELECT linked_record_kind, linked_record_id, admin_notes FROM submissions WHERE id=?", (sub_id,)).fetchone()
+        assert sub['linked_record_kind'] == 'entity'
+        assert sub['linked_record_id'] is not None
+        assert 'Created draft entity' in sub['admin_notes']
+        
+        ent = conn.execute("SELECT publication_status, name FROM entities WHERE id=?", (sub['linked_record_id'],)).fetchone()
+        assert ent['publication_status'] == 'Draft'
+        assert ent['name'] == 'New Draft Entity Test'
+
+
+def test_draft_entity_hidden():
+    c = client()
+    c.post('/submit', data={
+        'submitter_name': 'Tester',
+        'submission_type': 'Asset submission',
+        'name': 'Secret Draft Entity',
+    })
+    with connect() as conn:
+        sub_id = conn.execute("SELECT id FROM submissions ORDER BY id DESC LIMIT 1").fetchone()[0]
+    c.post(f'/admin/submissions/{sub_id}/create-draft-entity')
+    
+    rv = c.get('/')
+    assert b'Secret Draft Entity' not in rv.data
+
+
+def test_missing_name_error():
+    c = client()
+    with connect() as conn:
+        conn.execute("INSERT INTO submissions (ecosystem_id, submitter_name, submission_type, raw_data, status) VALUES (1, 'Tester', 'Asset submission', '{}', 'Pending Review')")
+        sub_id = conn.execute("SELECT id FROM submissions ORDER BY id DESC LIMIT 1").fetchone()[0]
+        conn.commit()
+        
+    rv = c.post(f'/admin/submissions/{sub_id}/create-draft-entity', follow_redirects=True)
+    assert b'Missing name or invalid JSON' in rv.data
+    
+    with connect() as conn:
+        sub = conn.execute("SELECT linked_record_kind FROM submissions WHERE id=?", (sub_id,)).fetchone()
+        assert sub['linked_record_kind'] is None
+
+
+def test_null_raw_fields_do_not_crash():
+    c = client()
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO submissions (ecosystem_id, submitter_name, submission_type, raw_data, status) VALUES (1, 'Tester', 'Asset submission', ?, 'Pending Review')",
+            ('{"name": "Null Field Entity", "type": null, "description": null, "location": null, "website": null}',),
+        )
+        sub_id = conn.execute("SELECT id FROM submissions ORDER BY id DESC LIMIT 1").fetchone()[0]
+        conn.commit()
+    rv = c.post(f'/admin/submissions/{sub_id}/create-draft-entity', follow_redirects=True)
+    assert rv.status_code == 200
+    with connect() as conn:
+        entity = conn.execute("SELECT name, type FROM entities WHERE name='Null Field Entity'").fetchone()
+    assert entity['name'] == 'Null Field Entity'
+    assert entity['type'] == 'Unknown'
+

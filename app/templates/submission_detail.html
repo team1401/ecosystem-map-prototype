@@ -11,6 +11,10 @@
   </div>
 </section>
 
+{% if error %}
+<div class="error" style="color: red; margin-bottom: 1em; padding: 1em; background: #fee; border: 1px solid red; border-radius: 4px;">{{ error }}</div>
+{% endif %}
+
 <section class="columns">
   <div class="panel">
     <h2>Submission details</h2>
@@ -22,6 +26,12 @@
     </dl>
     <h3>Raw submission</h3>
     <pre>{{ submission.raw_data }}</pre>
+    
+    {% if not submission.linked_record_id %}
+    <form method="post" action="{{ url_for('create_draft_entity', submission_id=submission.id) }}" style="margin-top: 1rem;">
+      <button type="submit">Create Draft Entity</button>
+    </form>
+    {% endif %}
   </div>
 
   <div class="panel">
@@ -41,4 +51,18 @@
     </form>
   </div>
 </section>
+
+{% if duplicates %}
+<section class="panel">
+  <h2>Possible Duplicates</h2>
+  <ul>
+    {% for dupe in duplicates %}
+    <li>
+      <a href="{{ url_for('entity_detail', entity_id=dupe.id) }}">{{ dupe.name }}</a>
+      (Confidence: <strong>{{ dupe.match_confidence }}</strong>)
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+{% endif %}
 {% endblock %}

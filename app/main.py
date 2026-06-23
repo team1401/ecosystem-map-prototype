@@ -23,6 +23,25 @@ def ecosystem(conn):
     return conn.execute("SELECT * FROM ecosystems ORDER BY id LIMIT 1").fetchone()
 
 
+def safe_parse_json(raw: str) -> dict:
+    if not raw:
+        return {}
+    try:
+        data = json.loads(raw)
+        if isinstance(data, dict):
+            return data
+        return {}
+    except (json.JSONDecodeError, TypeError):
+        return {}
+
+
+def text_value(data: dict, key: str) -> str:
+    value = data.get(key)
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
 @app.route("/")
 def index():
     seed()
@@ -146,7 +165,95 @@ def submission_detail(submission_id: int):
         ).fetchone()
     if not submission:
         abort(404)
-    return render_template("submission_detail.html", submission=submission)
+        
+    error = request.args.get('error')
+    duplicates = []
+    
+    parsed = safe_parse_json(submission["raw_data"])
+    if parsed:
+        name = text_value(parsed, "name")
+        website = text_value(parsed, "website")
+        location = text_value(parsed, "location")
+        
+        with connect() as conn:
+            where_clauses = []
+            params = []
+            if name:
+                where_clauses.append("name COLLATE NOCASE = ?")
+                params.append(name)
+            if website:
+                where_clauses.append("website = ?")
+                params.append(website)
+            if location:
+                where_clauses.append("location COLLATE NOCASE = ?")
+                params.append(location)
+                
+            if where_clauses:
+                query = f"SELECT * FROM entities WHERE {' OR '.join(where_clauses)}"
+                potential_dupes = conn.execute(query, params).fetchall()
+                
+                for dupe in potential_dupes:
+                    confidence = "Low"
+                    if (name and dupe["name"] and name.lower() == dupe["name"].lower()) or \
+                       (website and dupe["website"] and website == dupe["website"]):
+                        confidence = "High"
+                    
+                    dupe_dict = dict(dupe)
+                    dupe_dict["match_confidence"] = confidence
+                    duplicates.append(dupe_dict)
+
+    return render_template("submission_detail.html", submission=submission, duplicates=duplicates, error=error)
+
+
+@app.post("/admin/submissions/<int:submission_id>/create-draft-entity")
+def create_draft_entity(submission_id: int):
+    with connect() as conn:
+        submission = conn.execute(
+            "SELECT * FROM submissions WHERE id=?",
+            (submission_id,),
+        ).fetchone()
+    if not submission:
+        abort(404)
+
+    parsed = safe_parse_json(submission["raw_data"])
+    name = text_value(parsed, "name")
+    
+    if not parsed or not name:
+        return redirect(url_for("submission_detail", submission_id=submission_id, error="Missing name or invalid JSON"))
+        
+    with connect() as conn:
+        # Create draft entity
+        cur = conn.execute(
+            """INSERT INTO entities (ecosystem_id, name, type, description, location, website, publication_status, visibility, source, confidence, tags)
+               VALUES (?, ?, ?, ?, ?, ?, 'Draft', 'Public', ?, 'Submitted', '')""",
+            (
+                submission["ecosystem_id"],
+                name,
+                text_value(parsed, "type") or 'Unknown',
+                text_value(parsed, "description") or None,
+                text_value(parsed, "location") or None,
+                text_value(parsed, "website") or None,
+                f"Submission #{submission_id}"
+            )
+        )
+        new_entity_id = cur.lastrowid
+        
+        # Update submission
+        admin_notes = submission["admin_notes"] or ""
+        admin_notes = (admin_notes + f"\nCreated draft entity #{new_entity_id}.").strip()
+        
+        conn.execute(
+            """UPDATE submissions 
+               SET linked_record_kind = 'entity', 
+                   linked_record_id = ?, 
+                   admin_notes = ?, 
+                   reviewed_at = CURRENT_TIMESTAMP 
+               WHERE id = ?""",
+            (new_entity_id, admin_notes, submission_id)
+        )
+        conn.commit()
+
+    return redirect(url_for("submission_detail", submission_id=submission_id))
 
 
 @app.post("/admin/submissions/<int:submission_id>/update")
