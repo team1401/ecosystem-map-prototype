@@ -6,6 +6,7 @@ import json
 from flask import Flask, Response, abort, redirect, render_template, request, url_for
 
 from app.db import PUBLIC_STATUS, connect, init_db, public_clause
+from app.package import build_report
 from app.seed import seed
 
 app = Flask(__name__)
@@ -180,23 +181,6 @@ def admin():
         ).fetchall()
         counts = fetch_counts(conn)
     return render_template("admin.html", submissions=submissions, status=status, counts=counts)
-
-
-@app.route("/pilot")
-def pilot_dashboard():
-    seed()
-    with connect() as conn:
-        counts = fetch_counts(conn)
-        entity_statuses = conn.execute("SELECT publication_status, COUNT(*) AS count FROM entities GROUP BY publication_status").fetchall()
-        submission_statuses = conn.execute("SELECT status, COUNT(*) AS count FROM submissions GROUP BY status").fetchall()
-        latest_submissions = conn.execute("SELECT * FROM submissions ORDER BY created_at DESC LIMIT 5").fetchall()
-    return render_template(
-        "pilot.html",
-        counts=counts,
-        entity_statuses=entity_statuses,
-        submission_statuses=submission_statuses,
-        latest_submissions=latest_submissions,
-    )
 
 
 @app.route("/admin/import", methods=["GET", "POST"])
@@ -508,6 +492,30 @@ def export_entities_csv():
     for row in rows:
         writer.writerow([row[k] for k in row.keys()])
     return Response(out.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=entities.csv"})
+
+
+@app.route("/exports/relationships.csv")
+def export_relationships_csv():
+    with connect() as conn:
+        rows = conn.execute(
+            """SELECT r.id, s.name AS source_name, r.relationship_type, t.name AS target_name,
+                      r.description, r.evidence, r.confidence, r.publication_status, r.visibility
+                   FROM relationships r
+                   JOIN entities s ON s.id = r.source_entity_id
+                   LEFT JOIN entities t ON t.id = r.target_entity_id
+                  ORDER BY s.name, r.relationship_type, t.name"""
+        ).fetchall()
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["id", "source_name", "relationship_type", "target_name", "description", "evidence", "confidence", "publication_status", "visibility"])
+    for row in rows:
+        writer.writerow([row[k] for k in row.keys()])
+    return Response(out.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=relationships.csv"})
+
+
+@app.route("/exports/report.md")
+def export_report_markdown():
+    return Response(build_report(), mimetype="text/markdown", headers={"Content-Disposition": "attachment; filename=community-asset-discovery-report.md"})
 
 
 @app.route("/exports/data.json")

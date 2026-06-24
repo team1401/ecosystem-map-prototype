@@ -1,6 +1,7 @@
 from app.db import DB_PATH, connect
 from app.demo import load_demo
 from app.main import app
+from app.package import generate_packet
 from app.seed import seed
 
 
@@ -240,6 +241,13 @@ def test_exports_include_entities_and_json():
     assert csv_rv.status_code == 200
     assert b'id,name,type' in csv_rv.data
     assert b'Maya Rivera' in csv_rv.data
+    rel_rv = c.get('/exports/relationships.csv')
+    assert rel_rv.status_code == 200
+    assert b'source_name,relationship_type,target_name' in rel_rv.data
+    report_rv = c.get('/exports/report.md')
+    assert report_rv.status_code == 200
+    assert b'Community Asset Discovery Report' in report_rv.data
+    assert b'## Relationship Map' in report_rv.data
     json_rv = c.get('/exports/data.json')
     assert json_rv.status_code == 200
     assert b'"entities"' in json_rv.data
@@ -262,14 +270,6 @@ def test_bulk_import_creates_pending_submissions():
     assert b'Community Tool Library' in admin.data
 
 
-def test_pilot_dashboard_loads_workflow_links():
-    rv = client().get('/pilot')
-    assert rv.status_code == 200
-    assert b'Community asset discovery pilot' in rv.data
-    assert b'Bulk import notes' in rv.data
-    assert b'export JSON' in rv.data
-
-
 def test_demo_data_loads_idempotently():
     c = client()
     load_demo()
@@ -279,3 +279,19 @@ def test_demo_data_loads_idempotently():
     assert b'Community Tool Library' in rv.data
     graph = c.get('/graph')
     assert b'supports' in graph.data
+
+
+def test_pilot_page_removed():
+    assert client().get('/pilot').status_code == 404
+
+
+def test_generate_deliverable_packet(tmp_path):
+    client()
+    packet = generate_packet(tmp_path)
+    assert (packet / 'entities.csv').exists()
+    assert (packet / 'relationships.csv').exists()
+    assert (packet / 'data.json').exists()
+    report = packet / 'community-asset-discovery-report.md'
+    assert report.exists()
+    assert 'Community Asset Discovery Report' in report.read_text()
+    assert packet.with_suffix('.zip').exists()
