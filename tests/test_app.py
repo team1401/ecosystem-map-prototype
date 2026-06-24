@@ -295,3 +295,11 @@ def test_generate_deliverable_packet(tmp_path):
     assert report.exists()
     assert 'Community Asset Discovery Report' in report.read_text()
     assert packet.with_suffix('.zip').exists()
+
+
+def test_links_respect_script_name_prefix():
+    c = client()
+    rv = c.get('/', environ_overrides={'SCRIPT_NAME': '/ecosystem-map'})
+    assert rv.status_code == 200
+    assert b'href="/ecosystem-map/graph"' in rv.data
+    assert b'href="/ecosystem-map/exports/report.md"' in rv.data

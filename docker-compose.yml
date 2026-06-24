@@ -1,0 +1,9 @@
+services:
+  ecosystem-map:
+    build: .
+    container_name: ecosystem-map
+    restart: unless-stopped
+    environment:
+      APP_PREFIX: /ecosystem-map
+    ports:
+      - "3057:5057"

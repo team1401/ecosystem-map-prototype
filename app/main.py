@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import os
 from flask import Flask, Response, abort, redirect, render_template, request, url_for
 
 from app.db import PUBLIC_STATUS, connect, init_db, public_clause
@@ -10,6 +11,21 @@ from app.package import build_report
 from app.seed import seed
 
 app = Flask(__name__)
+
+
+class PrefixMiddleware:
+    def __init__(self, app, prefix: str):
+        self.app = app
+        self.prefix = prefix.rstrip("/")
+
+    def __call__(self, environ, start_response):
+        environ["SCRIPT_NAME"] = self.prefix
+        return self.app(environ, start_response)
+
+
+APP_PREFIX = os.environ.get("APP_PREFIX", "").rstrip("/")
+if APP_PREFIX:
+    app.wsgi_app = PrefixMiddleware(app.wsgi_app, APP_PREFIX)
 
 
 @app.before_request
