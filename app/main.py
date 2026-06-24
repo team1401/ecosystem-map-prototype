@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
-from flask import Flask, abort, redirect, render_template, request, url_for
+from flask import Flask, Response, abort, redirect, render_template, request, url_for
 
 from app.db import PUBLIC_STATUS, connect, init_db, public_clause
 from app.seed import seed
@@ -294,6 +296,156 @@ def review_submission(submission_id: int, action: str):
         )
         conn.commit()
     return redirect(url_for("admin"))
+
+
+@app.route("/admin/entities/<int:entity_id>")
+def admin_entity(entity_id: int):
+    with connect() as conn:
+        entity = conn.execute("SELECT * FROM entities WHERE id=?", (entity_id,)).fetchone()
+    if not entity:
+        abort(404)
+    return render_template("admin_entity.html", entity=entity)
+
+
+@app.post("/admin/entities/<int:entity_id>/update")
+def update_entity(entity_id: int):
+    fields = {
+        "name": request.form.get("name", "").strip(),
+        "type": request.form.get("type", "").strip() or "Unknown",
+        "description": request.form.get("description", "").strip(),
+        "location": request.form.get("location", "").strip(),
+        "website": request.form.get("website", "").strip(),
+        "tags": request.form.get("tags", "").strip(),
+        "publication_status": request.form.get("publication_status", "Draft").strip(),
+        "visibility": request.form.get("visibility", "Public").strip(),
+    }
+    if not fields["name"]:
+        return redirect(url_for("admin_entity", entity_id=entity_id, error="Name is required"))
+    if fields["publication_status"] not in {"Draft", PUBLIC_STATUS, "Archived", "Rejected"}:
+        abort(400)
+    if fields["visibility"] not in {"Public", "Private / Admin Only"}:
+        abort(400)
+    with connect() as conn:
+        cur = conn.execute(
+            """UPDATE entities
+                  SET name=?, type=?, description=?, location=?, website=?, tags=?,
+                      publication_status=?, visibility=?, updated_at=CURRENT_TIMESTAMP
+                WHERE id=?""",
+            (
+                fields["name"],
+                fields["type"],
+                fields["description"] or None,
+                fields["location"] or None,
+                fields["website"] or None,
+                fields["tags"],
+                fields["publication_status"],
+                fields["visibility"],
+                entity_id,
+            ),
+        )
+        conn.commit()
+    if cur.rowcount == 0:
+        abort(404)
+    return redirect(url_for("admin_entity", entity_id=entity_id))
+
+
+@app.post("/admin/entities/<int:entity_id>/publish")
+def publish_entity(entity_id: int):
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE entities SET publication_status=?, visibility='Public', updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (PUBLIC_STATUS, entity_id),
+        )
+        conn.commit()
+    if cur.rowcount == 0:
+        abort(404)
+    return redirect(url_for("admin_entity", entity_id=entity_id))
+
+
+@app.post("/admin/entities/<int:entity_id>/archive")
+def archive_entity(entity_id: int):
+    with connect() as conn:
+        cur = conn.execute(
+            "UPDATE entities SET publication_status='Archived', updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (entity_id,),
+        )
+        conn.commit()
+    if cur.rowcount == 0:
+        abort(404)
+    return redirect(url_for("admin_entity", entity_id=entity_id))
+
+
+@app.route("/admin/relationships", methods=["GET", "POST"])
+def admin_relationships():
+    seed()
+    error = None
+    with connect() as conn:
+        eco = ecosystem(conn)
+        if request.method == "POST":
+            source_id = request.form.get("source_entity_id", "").strip()
+            target_id = request.form.get("target_entity_id", "").strip()
+            rel_type = request.form.get("relationship_type", "").strip()
+            if not source_id or not target_id or not rel_type:
+                error = "Source, target, and relationship type are required."
+            elif source_id == target_id:
+                error = "Source and target must be different entities."
+            else:
+                source = conn.execute("SELECT id FROM entities WHERE id=?", (source_id,)).fetchone()
+                target = conn.execute("SELECT id FROM entities WHERE id=?", (target_id,)).fetchone()
+                if not source or not target:
+                    error = "Source or target entity not found."
+                else:
+                    conn.execute(
+                        """INSERT INTO relationships(
+                               ecosystem_id, source_entity_id, target_entity_id, relationship_type,
+                               target_kind, description, evidence, confidence, publication_status, visibility
+                           ) VALUES (?, ?, ?, ?, 'entity', ?, ?, ?, ?, ?)""",
+                        (
+                            eco["id"],
+                            int(source_id),
+                            int(target_id),
+                            rel_type,
+                            request.form.get("description", "").strip() or None,
+                            request.form.get("evidence", "").strip() or None,
+                            request.form.get("confidence", "Suggested"),
+                            request.form.get("publication_status", "Draft"),
+                            request.form.get("visibility", "Public"),
+                        ),
+                    )
+                    conn.commit()
+                    return redirect(url_for("admin_relationships"))
+        entities = conn.execute("SELECT id, name, type, publication_status FROM entities ORDER BY name").fetchall()
+        relationships = conn.execute(
+            """SELECT r.*, s.name AS source_name, t.name AS target_name
+                   FROM relationships r
+                   JOIN entities s ON s.id = r.source_entity_id
+                   LEFT JOIN entities t ON t.id = r.target_entity_id
+                  ORDER BY r.created_at DESC, r.id DESC"""
+        ).fetchall()
+    return render_template("admin_relationships.html", entities=entities, relationships=relationships, error=error)
+
+
+@app.route("/exports/entities.csv")
+def export_entities_csv():
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT id, name, type, description, location, website, tags, publication_status, visibility, source, confidence FROM entities ORDER BY name"
+        ).fetchall()
+    out = io.StringIO()
+    writer = csv.writer(out)
+    writer.writerow(["id", "name", "type", "description", "location", "website", "tags", "publication_status", "visibility", "source", "confidence"])
+    for row in rows:
+        writer.writerow([row[k] for k in row.keys()])
+    return Response(out.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=entities.csv"})
+
+
+@app.route("/exports/data.json")
+def export_data_json():
+    payload = {}
+    with connect() as conn:
+        for table in ["ecosystems", "entities", "relationships", "submissions", "events", "resources", "opportunities", "needs", "offers"]:
+            payload[table] = [dict(row) for row in conn.execute(f"SELECT * FROM {table}").fetchall()]
+    return Response(json.dumps(payload, indent=2), mimetype="application/json")
 
 
 @app.route("/graph")

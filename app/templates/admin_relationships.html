@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Admin Relationships - Ecosystem Map{% endblock %}
+{% block content %}
+<section class="hero">
+  <div><p class="eyebrow">Admin</p><h1>Relationship manager</h1><p>Create and review ecosystem links that power the graph.</p></div>
+</section>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+<section class="columns">
+  <div class="panel">
+    <h2>Create relationship</h2>
+    <form method="post" class="stacked">
+      <label>Source entity
+        <select name="source_entity_id" required>
+          <option value="">Select source</option>
+          {% for e in entities %}<option value="{{ e.id }}">{{ e.name }} · {{ e.type }} · {{ e.publication_status }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Relationship type
+        <select name="relationship_type" required>
+          {% for option in ['collaborates_with', 'funds', 'hosts', 'serves', 'located_at', 'needs', 'offers', 'supports', 'mentors'] %}
+          <option value="{{ option }}">{{ option }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Target entity
+        <select name="target_entity_id" required>
+          <option value="">Select target</option>
+          {% for e in entities %}<option value="{{ e.id }}">{{ e.name }} · {{ e.type }} · {{ e.publication_status }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Description <textarea name="description" placeholder="Why these assets are connected"></textarea></label>
+      <label>Evidence <textarea name="evidence" placeholder="Source URL, note, interview, survey response"></textarea></label>
+      <label>Confidence
+        <select name="confidence"><option>Suggested</option><option>Submitted</option><option>Verified</option></select>
+      </label>
+      <label>Publication status
+        <select name="publication_status"><option>Draft</option><option>Approved / Published</option></select>
+      </label>
+      <label>Visibility
+        <select name="visibility"><option>Public</option><option>Private / Admin Only</option></select>
+      </label>
+      <button>Create relationship</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>Existing relationships</h2>
+    {% for r in relationships %}
+    <article class="review-card">
+      <p class="eyebrow">#{{ r.id }} · {{ r.publication_status }} · {{ r.confidence }}</p>
+      <h3>{{ r.source_name }} → {{ r.relationship_type }} → {{ r.target_name or r.target_label }}</h3>
+      {% if r.description %}<p>{{ r.description }}</p>{% endif %}
+      {% if r.evidence %}<p><strong>Evidence:</strong> {{ r.evidence }}</p>{% endif %}
+    </article>
+    {% else %}<p>No relationships yet.</p>{% endfor %}
+  </div>
+</section>
+{% endblock %}

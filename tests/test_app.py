@@ -168,3 +168,78 @@ def test_null_raw_fields_do_not_crash():
     assert entity['name'] == 'Null Field Entity'
     assert entity['type'] == 'Unknown'
 
+
+def create_draft(c, name='Publish Me'):
+    c.post('/submit', data={
+        'submitter_name': 'Tester',
+        'submission_type': 'Asset submission',
+        'name': name,
+        'asset_type': 'Venue',
+        'description': 'Draft description',
+    })
+    with connect() as conn:
+        sub_id = conn.execute("SELECT id FROM submissions ORDER BY id DESC LIMIT 1").fetchone()[0]
+    c.post(f'/admin/submissions/{sub_id}/create-draft-entity')
+    with connect() as conn:
+        return conn.execute("SELECT linked_record_id FROM submissions WHERE id=?", (sub_id,)).fetchone()[0]
+
+
+def test_admin_can_edit_and_publish_draft_entity():
+    c = client()
+    entity_id = create_draft(c)
+    rv = c.get(f'/admin/entities/{entity_id}')
+    assert rv.status_code == 200
+    assert b'Publish publicly' in rv.data
+    assert b'Publish Me' in rv.data
+
+    c.post(f'/admin/entities/{entity_id}/update', data={
+        'name': 'Published Pilot Venue',
+        'type': 'Venue',
+        'description': 'Updated before publishing',
+        'location': 'River City',
+        'website': 'https://pilot.example.org',
+        'tags': 'pilot,venue',
+        'publication_status': 'Draft',
+        'visibility': 'Public',
+    })
+    assert b'Published Pilot Venue' not in c.get('/').data
+
+    rv = c.post(f'/admin/entities/{entity_id}/publish', follow_redirects=True)
+    assert rv.status_code == 200
+    assert b'Approved / Published' in rv.data
+    public = c.get('/')
+    assert b'Published Pilot Venue' in public.data
+
+
+def test_relationship_creation_appears_on_graph():
+    c = client()
+    target_id = create_draft(c, 'Relationship Target')
+    c.post(f'/admin/entities/{target_id}/publish')
+    rv = c.post('/admin/relationships', data={
+        'source_entity_id': '1',
+        'target_entity_id': str(target_id),
+        'relationship_type': 'supports',
+        'description': 'Maya supports the pilot target',
+        'evidence': 'Pilot interview',
+        'confidence': 'Verified',
+        'publication_status': 'Approved / Published',
+        'visibility': 'Public',
+    }, follow_redirects=True)
+    assert rv.status_code == 200
+    assert b'Maya Rivera' in rv.data
+    assert b'Relationship Target' in rv.data
+    graph = c.get('/graph')
+    assert b'supports' in graph.data
+    assert b'Relationship Target' in graph.data
+
+
+def test_exports_include_entities_and_json():
+    c = client()
+    csv_rv = c.get('/exports/entities.csv')
+    assert csv_rv.status_code == 200
+    assert b'id,name,type' in csv_rv.data
+    assert b'Maya Rivera' in csv_rv.data
+    json_rv = c.get('/exports/data.json')
+    assert json_rv.status_code == 200
+    assert b'"entities"' in json_rv.data
+    assert b'"relationships"' in json_rv.data

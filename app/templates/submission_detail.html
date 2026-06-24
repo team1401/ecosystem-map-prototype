@@ -22,7 +22,7 @@
       <dt>Created</dt><dd>{{ submission.created_at or '—' }}</dd>
       <dt>Reviewed</dt><dd>{{ submission.reviewed_at or '—' }}</dd>
       <dt>Linked record kind</dt><dd>{{ submission.linked_record_kind or '—' }}</dd>
-      <dt>Linked record ID</dt><dd>{{ submission.linked_record_id or '—' }}</dd>
+      <dt>Linked record ID</dt><dd>{% if submission.linked_record_kind == 'entity' and submission.linked_record_id %}<a href="{{ url_for('admin_entity', entity_id=submission.linked_record_id) }}">entity #{{ submission.linked_record_id }}</a>{% else %}{{ submission.linked_record_id or '—' }}{% endif %}</dd>
     </dl>
     <h3>Raw submission</h3>
     <pre>{{ submission.raw_data }}</pre>

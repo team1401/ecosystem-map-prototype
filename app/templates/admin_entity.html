@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Edit {{ entity.name }} - Ecosystem Map{% endblock %}
+{% block content %}
+<a href="{{ url_for('admin') }}">← Admin queue</a>
+<section class="hero">
+  <div>
+    <p class="eyebrow">Entity #{{ entity.id }} · {{ entity.publication_status }} · {{ entity.visibility }}</p>
+    <h1>Edit {{ entity.name }}</h1>
+    {% if entity.publication_status == 'Approved / Published' and entity.visibility == 'Public' %}
+      <p><a href="{{ url_for('entity_detail', entity_id=entity.id) }}">View public profile</a></p>
+    {% endif %}
+  </div>
+</section>
+
+<section class="columns">
+  <div class="panel">
+    <h2>Entity fields</h2>
+    <form method="post" action="{{ url_for('update_entity', entity_id=entity.id) }}" class="stacked">
+      <label>Name <input name="name" value="{{ entity.name }}" required></label>
+      <label>Type <input name="type" value="{{ entity.type }}"></label>
+      <label>Description <textarea name="description">{{ entity.description or '' }}</textarea></label>
+      <label>Location <input name="location" value="{{ entity.location or '' }}"></label>
+      <label>Website <input name="website" value="{{ entity.website or '' }}"></label>
+      <label>Tags <input name="tags" value="{{ entity.tags or '' }}"></label>
+      <label>Publication status
+        <select name="publication_status">
+          {% for option in ['Draft', 'Approved / Published', 'Archived', 'Rejected'] %}
+          <option value="{{ option }}" {% if entity.publication_status == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>Visibility
+        <select name="visibility">
+          {% for option in ['Public', 'Private / Admin Only'] %}
+          <option value="{{ option }}" {% if entity.visibility == option %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <button>Save entity</button>
+    </form>
+  </div>
+
+  <div class="panel">
+    <h2>Publish controls</h2>
+    <p><strong>Source:</strong> {{ entity.source or '—' }}</p>
+    <p><strong>Confidence:</strong> {{ entity.confidence or '—' }}</p>
+    <p><strong>Updated:</strong> {{ entity.updated_at or '—' }}</p>
+    <form method="post" action="{{ url_for('publish_entity', entity_id=entity.id) }}"><button>Publish publicly</button></form>
+    <form method="post" action="{{ url_for('archive_entity', entity_id=entity.id) }}"><button class="danger">Archive</button></form>
+  </div>
+</section>
+{% endblock %}
