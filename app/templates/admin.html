@@ -3,7 +3,7 @@
 {% block content %}
 <section class="hero"><div><h1>Admin review queue</h1><p>Review public submissions before records become visible.</p></div><div class="metrics">{% for key, value in counts.items() %}<span><strong>{{ value }}</strong>{{ key }}</span>{% endfor %}</div></section>
 <section class="panel">
-  <p>Status filters: <a href="{{ url_for('admin', status='Pending Review') }}">Pending</a> · <a href="{{ url_for('admin', status='Needs More Information') }}">Needs Info</a> · <a href="{{ url_for('admin', status='Approved / Published') }}">Approved</a> · <a href="{{ url_for('admin', status='Rejected') }}">Rejected</a></p>
+  <p>Status filters: <a href="{{ url_for('admin', status='Pending Review') }}">Pending</a> · <a href="{{ url_for('admin', status='Needs More Information') }}">Needs Info</a> · <a href="{{ url_for('admin', status='Approved / Published') }}">Approved</a> · <a href="{{ url_for('admin', status='Rejected') }}">Rejected</a> · <a href="{{ url_for('admin_relationships') }}">Manage relationships</a></p>
   <h2>{{ status }}</h2>
   {% for s in submissions %}
   <article class="review-card">

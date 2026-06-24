@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Relationships - Ecosystem Map{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow">Public relationship map</p>
+    <h1>Relationships</h1>
+    <p>Evidence-backed connections between published ecosystem assets.</p>
+  </div>
+  <div class="metrics"><span><strong>{{ relationships|length }}</strong>visible relationships</span></div>
+</section>
+<section class="panel">
+  <form method="get" class="filters">
+    <select name="type">
+      <option value="">All relationship types</option>
+      {% for item in relationship_types %}
+        <option value="{{ item.relationship_type }}" {% if selected_type == item.relationship_type %}selected{% endif %}>{{ item.relationship_type }}</option>
+      {% endfor %}
+    </select>
+    <button>Filter</button>
+    {% if selected_type %}<a href="{{ url_for('public_relationships') }}">Clear</a>{% endif %}
+  </form>
+  <div class="grid">
+  {% for r in relationships %}
+    <article class="card relationship-card">
+      <p class="eyebrow">{{ r.confidence }} · {{ r.publication_status }}</p>
+      <h2>
+        <a href="{{ url_for('entity_detail', entity_id=r.source_entity_id) }}">{{ r.source_name }}</a>
+        <span class="pill">{{ r.relationship_type }}</span>
+        <a href="{{ url_for('entity_detail', entity_id=r.target_entity_id) }}">{{ r.target_name }}</a>
+      </h2>
+      {% if r.description %}<p>{{ r.description }}</p>{% endif %}
+      {% if r.evidence %}<p><strong>Evidence:</strong> {{ r.evidence }}</p>{% endif %}
+    </article>
+  {% else %}
+    <p>No published relationships match this filter.</p>
+  {% endfor %}
+  </div>
+</section>
+{% endblock %}

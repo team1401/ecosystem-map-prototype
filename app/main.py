@@ -24,8 +24,14 @@ class PrefixMiddleware:
 
 
 APP_PREFIX = os.environ.get("APP_PREFIX", "").rstrip("/")
+PUBLIC_READ_ONLY = os.environ.get("PUBLIC_READ_ONLY", "").lower() in {"1", "true", "yes"}
 if APP_PREFIX:
     app.wsgi_app = PrefixMiddleware(app.wsgi_app, APP_PREFIX)
+
+
+@app.context_processor
+def inject_runtime_flags():
+    return {"public_read_only": PUBLIC_READ_ONLY}
 
 
 @app.before_request
@@ -494,6 +500,32 @@ def admin_relationships():
                   ORDER BY r.created_at DESC, r.id DESC"""
         ).fetchall()
     return render_template("admin_relationships.html", entities=entities, relationships=relationships, error=error)
+
+
+@app.route("/relationships")
+def public_relationships():
+    seed()
+    rel_type = request.args.get("type", "").strip()
+    with connect() as conn:
+        params = []
+        where = [public_clause("r")]
+        if rel_type:
+            where.append("r.relationship_type = ?")
+            params.append(rel_type)
+        relationships = conn.execute(
+            f"""SELECT r.*, s.name AS source_name, s.type AS source_type,
+                      t.name AS target_name, t.type AS target_type
+                   FROM relationships r
+                   JOIN entities s ON s.id = r.source_entity_id AND {public_clause('s')}
+                   JOIN entities t ON t.id = r.target_entity_id AND {public_clause('t')}
+                  WHERE {' AND '.join(where)}
+                  ORDER BY r.relationship_type, s.name, t.name""",
+            params,
+        ).fetchall()
+        relationship_types = conn.execute(
+            f"SELECT DISTINCT relationship_type FROM relationships r WHERE {public_clause('r')} ORDER BY relationship_type"
+        ).fetchall()
+    return render_template("relationships.html", relationships=relationships, relationship_types=relationship_types, selected_type=rel_type)
 
 
 @app.route("/exports/entities.csv")

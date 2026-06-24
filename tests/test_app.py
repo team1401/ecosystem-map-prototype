@@ -1,3 +1,4 @@
+import app.main as main_module
 from app.db import DB_PATH, connect
 from app.demo import load_demo
 from app.main import app
@@ -233,6 +234,23 @@ def test_relationship_creation_appears_on_graph():
     graph = c.get('/graph')
     assert b'supports' in graph.data
     assert b'Relationship Target' in graph.data
+    public = c.get('/relationships')
+    assert public.status_code == 200
+    assert b'Maya supports the pilot target' in public.data
+    assert b'Relationship Target' in public.data
+
+
+def test_public_relationships_tab_uses_public_route():
+    c = client()
+    rv = c.get('/')
+    assert rv.status_code == 200
+    assert b'href="/relationships"' in rv.data
+    assert b'href="/admin/relationships">Relationships' not in rv.data
+    rels = c.get('/relationships')
+    assert rels.status_code == 200
+    assert b'Public relationship map' in rels.data
+    assert b'Maya Rivera' in rels.data
+    assert b'Northbank Studio' in rels.data
 
 
 def test_exports_include_entities_and_json():
@@ -302,4 +320,15 @@ def test_links_respect_script_name_prefix():
     rv = c.get('/', environ_overrides={'SCRIPT_NAME': '/ecosystem-map'})
     assert rv.status_code == 200
     assert b'href="/ecosystem-map/graph"' in rv.data
+    assert b'href="/ecosystem-map/relationships"' in rv.data
     assert b'href="/ecosystem-map/exports/report.md"' in rv.data
+
+
+def test_public_read_only_hides_private_nav_links(monkeypatch):
+    c = client()
+    monkeypatch.setattr(main_module, 'PUBLIC_READ_ONLY', True)
+    rv = c.get('/')
+    assert b'href="/relationships"' in rv.data
+    assert b'href="/submit"' not in rv.data
+    assert b'href="/admin"' not in rv.data
+    assert b'href="/admin/import"' not in rv.data

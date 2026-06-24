@@ -5,5 +5,6 @@ services:
     restart: unless-stopped
     environment:
       APP_PREFIX: /ecosystem-map
+      PUBLIC_READ_ONLY: "1"
     ports:
       - "3057:5057"
