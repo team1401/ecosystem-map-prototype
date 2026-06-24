@@ -243,3 +243,27 @@ def test_exports_include_entities_and_json():
     assert json_rv.status_code == 200
     assert b'"entities"' in json_rv.data
     assert b'"relationships"' in json_rv.data
+
+
+def test_bulk_import_creates_pending_submissions():
+    c = client()
+    rv = c.post('/admin/import', data={
+        'submitter_name': 'Workshop Notes',
+        'raw_text': 'Name: Eastside Arts Collective\nType: Organization\nLocation: East River\nDescription: Youth arts programming.\n\nName: Community Tool Library\nType: Resource\nDescription: Shared equipment.'
+    }, follow_redirects=True)
+    assert rv.status_code == 200
+    assert b'Created 2 submissions' in rv.data
+    with connect() as conn:
+        count = conn.execute("SELECT COUNT(*) FROM submissions WHERE submitter_name='Workshop Notes'").fetchone()[0]
+    assert count == 2
+    admin = c.get('/admin')
+    assert b'Eastside Arts Collective' in admin.data
+    assert b'Community Tool Library' in admin.data
+
+
+def test_pilot_dashboard_loads_workflow_links():
+    rv = client().get('/pilot')
+    assert rv.status_code == 200
+    assert b'Community asset discovery pilot' in rv.data
+    assert b'Bulk import notes' in rv.data
+    assert b'export JSON' in rv.data

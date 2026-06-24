@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Pilot Dashboard - Ecosystem Map{% endblock %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow">Deliverable pilot</p>
+    <h1>Community asset discovery pilot</h1>
+    <p>End-to-end workflow: collect assets, review submissions, create draft records, publish verified entities, map relationships, export data.</p>
+  </div>
+  <div class="metrics">{% for key, value in counts.items() %}<span><strong>{{ value }}</strong>{{ key }}</span>{% endfor %}</div>
+</section>
+
+<section class="columns">
+  <div class="panel">
+    <h2>Pilot workflow</h2>
+    <ol>
+      <li><a href="{{ url_for('admin_import') }}">Bulk import notes</a> or <a href="{{ url_for('submit') }}">submit an asset</a>.</li>
+      <li><a href="{{ url_for('admin') }}">Review pending submissions</a> and create draft entities.</li>
+      <li>Edit and publish draft entities from the admin entity screen.</li>
+      <li><a href="{{ url_for('admin_relationships') }}">Create relationships</a> between published/draft entities.</li>
+      <li>Show the <a href="{{ url_for('graph') }}">public graph</a> and <a href="{{ url_for('export_data_json') }}">export JSON</a> / <a href="{{ url_for('export_entities_csv') }}">CSV</a>.</li>
+    </ol>
+  </div>
+  <div class="panel">
+    <h2>Status breakdown</h2>
+    <h3>Entities</h3>
+    <ul>{% for row in entity_statuses %}<li>{{ row.publication_status }}: {{ row.count }}</li>{% endfor %}</ul>
+    <h3>Submissions</h3>
+    <ul>{% for row in submission_statuses %}<li>{{ row.status }}: {{ row.count }}</li>{% endfor %}</ul>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>Latest submissions</h2>
+  {% for s in latest_submissions %}
+  <article class="review-card"><a href="{{ url_for('submission_detail', submission_id=s.id) }}">#{{ s.id }} · {{ s.submission_type }} · {{ s.status }}</a><pre>{{ s.raw_data }}</pre></article>
+  {% else %}<p>No submissions yet.</p>{% endfor %}
+</section>
+{% endblock %}

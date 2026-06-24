@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Import Notes - Ecosystem Map{% endblock %}
+{% block content %}
+<section class="hero"><div><p class="eyebrow">Admin intake</p><h1>Bulk import field notes</h1><p>Paste structured notes to create pending asset submissions for human review.</p></div></section>
+
+{% if error %}<div class="error">{{ error }}</div>{% endif %}
+{% if created %}
+<section class="panel"><h2>Created {{ created|length }} submissions</h2><ul>{% for id in created %}<li><a href="{{ url_for('submission_detail', submission_id=id) }}">Review submission #{{ id }}</a></li>{% endfor %}</ul></section>
+{% endif %}
+
+<section class="panel narrow">
+  <form method="post" class="stacked">
+    <label>Submitter name <input name="submitter_name" value="Bulk Import"></label>
+    <label>Submitter email <input name="submitter_email"></label>
+    <label>Notes
+      <textarea name="raw_text" rows="16" placeholder="Name: Eastside Arts Collective&#10;Type: Organization&#10;Location: East River District&#10;Website: https://example.org&#10;Description: Youth arts and rehearsal space.&#10;&#10;Name: Mutual Aid Fridge&#10;Type: Resource&#10;Description: Community food access point."></textarea>
+    </label>
+    <button>Create pending submissions</button>
+  </form>
+</section>
+{% endblock %}

@@ -44,6 +44,31 @@ def text_value(data: dict, key: str) -> str:
     return str(value).strip()
 
 
+def parse_asset_notes(text: str) -> list[dict]:
+    blocks = [b.strip() for b in text.split("\n\n") if b.strip()]
+    assets: list[dict] = []
+    for block in blocks:
+        data = {"name": "", "type": "", "description": "", "location": "", "website": "", "suggested_relationship": ""}
+        loose_lines = []
+        for line in block.splitlines():
+            if ":" in line:
+                key, value = line.split(":", 1)
+                norm = key.strip().lower().replace(" ", "_")
+                if norm in {"name", "type", "description", "location", "website", "suggested_relationship"}:
+                    data[norm] = value.strip()
+                    continue
+            loose_lines.append(line.strip())
+        if not data["name"] and loose_lines:
+            data["name"] = loose_lines[0]
+            data["description"] = "\n".join(loose_lines[1:]).strip()
+        elif loose_lines and not data["description"]:
+            data["description"] = "\n".join(loose_lines).strip()
+        if data["name"]:
+            data["type"] = data["type"] or "Unknown"
+            assets.append(data)
+    return assets
+
+
 @app.route("/")
 def index():
     seed()
@@ -155,6 +180,52 @@ def admin():
         ).fetchall()
         counts = fetch_counts(conn)
     return render_template("admin.html", submissions=submissions, status=status, counts=counts)
+
+
+@app.route("/pilot")
+def pilot_dashboard():
+    seed()
+    with connect() as conn:
+        counts = fetch_counts(conn)
+        entity_statuses = conn.execute("SELECT publication_status, COUNT(*) AS count FROM entities GROUP BY publication_status").fetchall()
+        submission_statuses = conn.execute("SELECT status, COUNT(*) AS count FROM submissions GROUP BY status").fetchall()
+        latest_submissions = conn.execute("SELECT * FROM submissions ORDER BY created_at DESC LIMIT 5").fetchall()
+    return render_template(
+        "pilot.html",
+        counts=counts,
+        entity_statuses=entity_statuses,
+        submission_statuses=submission_statuses,
+        latest_submissions=latest_submissions,
+    )
+
+
+@app.route("/admin/import", methods=["GET", "POST"])
+def admin_import():
+    seed()
+    created = []
+    error = None
+    if request.method == "POST":
+        raw_text = request.form.get("raw_text", "")
+        assets = parse_asset_notes(raw_text)
+        if not assets:
+            error = "No asset names found. Use 'Name: ...' blocks or one asset name per paragraph."
+        else:
+            with connect() as conn:
+                eco = ecosystem(conn)
+                for asset in assets:
+                    cur = conn.execute(
+                        """INSERT INTO submissions(ecosystem_id, submitter_name, submitter_email, submission_type, raw_data, status)
+                           VALUES (?, ?, ?, 'Asset submission', ?, 'Pending Review')""",
+                        (
+                            eco["id"],
+                            request.form.get("submitter_name", "Bulk Import").strip() or "Bulk Import",
+                            request.form.get("submitter_email", "").strip(),
+                            json.dumps(asset, indent=2),
+                        ),
+                    )
+                    created.append(cur.lastrowid)
+                conn.commit()
+    return render_template("admin_import.html", created=created, error=error)
 
 
 @app.route("/admin/submissions/<int:submission_id>")
