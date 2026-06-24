@@ -1,4 +1,5 @@
 from app.db import DB_PATH, connect
+from app.demo import load_demo
 from app.main import app
 from app.seed import seed
 
@@ -267,3 +268,14 @@ def test_pilot_dashboard_loads_workflow_links():
     assert b'Community asset discovery pilot' in rv.data
     assert b'Bulk import notes' in rv.data
     assert b'export JSON' in rv.data
+
+
+def test_demo_data_loads_idempotently():
+    c = client()
+    load_demo()
+    load_demo()
+    rv = c.get('/')
+    assert b'Eastside Arts Collective' in rv.data
+    assert b'Community Tool Library' in rv.data
+    graph = c.get('/graph')
+    assert b'supports' in graph.data
