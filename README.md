@@ -30,7 +30,7 @@ uv run flask --app app.main run --debug --port 5057
 
 Open locally: http://127.0.0.1:5057
 
-If Tailscale Serve is active, open: https://helix.tail4532cc.ts.net:5057/
+If Tailscale Serve is active, open: https://<tailscale-host>:5057/
 
 ## Operator workflow
 
